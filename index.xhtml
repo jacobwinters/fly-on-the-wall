@@ -585,5 +585,13 @@ requestAnimationFrame(function frame(t) {
 	requestAnimationFrame(frame);
 });
 //]]></script>
+<div hidden="">
+	<button onclick="blocks.forEach(r=>r.fill(null))">Clear blocks</button>
+	<button onclick="aiLives=0;balls=[]">AI loses</button>
+	<button onclick="playerLives=0;respawnTimer=1">Lose</button>
+	<button onclick="powerupTypes.mitosis()">Mitosis</button>
+	<button onclick="powerupTypes.gravity()">Gravity</button>
+	<button onclick="powerupTypes.dark()">Dark</button>
+</div>
 </body>
 </html>
