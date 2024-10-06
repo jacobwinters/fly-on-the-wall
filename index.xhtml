@@ -325,7 +325,7 @@ function tick(t) {
 	}
 	if (!goalObject || !(goalObject instanceof Ball) || goalObject.intersectX === null) {
 		for (let ball of balls) {
-			if (ball.intersectX !== null && (!goalObject || goalObject.y < ball.y)) {
+			if (ball.intersectX !== null && (!goalObject || !(goalObject instanceof Ball) || goalObject.intersectX === null || goalObject.y < ball.y)) {
 				goalObject = ball;
 			}
 		}
