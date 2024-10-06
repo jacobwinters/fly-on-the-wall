@@ -381,6 +381,7 @@ function tick(t) {
 		let removing = false;
 		if (intersects(powerup, paddle)) {
 			powerupTypes[powerup.type]();
+			sound("sfx-powerup");
 			removing = true;
 		} else if (powerup.y > boundY) {
 			removing = true;
@@ -388,7 +389,6 @@ function tick(t) {
 		if (removing) {
 			if (goalObject === powerup) goalObject = null;
 			powerups.splice(i, 1);
-			sound("sfx-powerup");
 		}
 	}
 
