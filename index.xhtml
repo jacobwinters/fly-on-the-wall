@@ -303,25 +303,21 @@ function tick(t) {
 	let oldGoalObject = goalObject;
 	if (goalObject && goalObject.y > paddle.y) {
 		goalObject = null;
-		console.log("old goal went off screen");
 	}
 	if (!goalObject || !(goalObject instanceof Ball) || goalObject.intersectX === null) {
 		for (let ball of balls) {
 			if (ball.intersectX !== null && (!goalObject || goalObject.y < ball.y)) {
 				goalObject = ball;
-				console.log("falling ball", ball);
 			}
 		}
 	}
 	if ((!goalObject || (goalObject instanceof Ball && goalObject.intersectX === null)) && powerups.length) {
 		goalObject = powerups[0];
-		console.log("powerup");
 	}
 	if (!goalObject) {
 		for (let ball of balls) {
 			if (!goalObject || goalObject.y < ball.y) {
 				goalObject = ball;
-				console.log("alt ball");
 			}
 		}
 	}
