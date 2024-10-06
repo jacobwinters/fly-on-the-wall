@@ -223,15 +223,15 @@ function tick(t) {
 	let msgX = 160;
 	let msgY = 300;
 	let wiggleSuffix = t % 200 < 100 ? "" : "-2";
-	if (t < 2000) {
+	if (t < 2500) {
 		drawImageInColor($("#text-someone-is" + wiggleSuffix), msgX, msgY, "base00");
 		drawImageInColor($("#text-playing-breakout" + wiggleSuffix), msgX, msgY, "base00");
 		drawImageInColor($("#text-exclamation" + wiggleSuffix), msgX, msgY, "base00");
-	} else if (t < 4000) {
+	} else if (t < 4500) {
 		drawImageInColor($("#text-you-are" + wiggleSuffix), msgX, msgY, "base00");
 		drawImageInColor($("#text-not" + wiggleSuffix), msgX, msgY, "base00");
 		drawImageInColor($("#text-playing-breakout" + wiggleSuffix), msgX, msgY, "base00");
-	} else if (t < 6000) {
+	} else if (t < 6500) {
 		drawImageInColor($("#text-you-are" + wiggleSuffix), msgX, msgY, "base00");
 		drawImageInColor($("#text-this-fly" + wiggleSuffix), msgX, msgY, "base00");
 		let flyDisplacement = flyX - (paddle.w / 2 - 4 / 2);
@@ -350,7 +350,7 @@ function tick(t) {
 			sound("sfx-ball-fall");
 		}
 	}
-	if (!balls.length && t > 6000 && aiLives !== 0) {
+	if (!balls.length && t > 6500 && aiLives !== 0) {
 		balls.push(new Ball());
 		aiLives--;
 	}
