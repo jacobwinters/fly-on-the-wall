@@ -1,0 +1,491 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en">
+<head>
+<title>Fly on the wall</title>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<style>
+body {
+	display: grid;
+	align-content: center;
+	justify-content: center;
+	min-height: 100vh;
+	margin: 0;
+	background: #fdf6e3;
+	color: #586e75;
+	image-rendering: pixelated;
+}
+canvas {
+	border: 3px double;
+}
+</style>
+</head>
+<body>
+<canvas width="400" height="480"></canvas>
+<div hidden="">
+	<img id="fly" src="fly.png" />
+	<img id="text-someone-is" src="text-someone-is.png" />
+	<img id="text-someone-is-2" src="text-someone-is-2.png" />
+	<img id="text-playing-breakout" src="text-playing-breakout.png" />
+	<img id="text-playing-breakout-2" src="text-playing-breakout-2.png" />
+	<img id="text-exclamation" src="text-exclamation.png" />
+	<img id="text-exclamation-2" src="text-exclamation-2.png" />
+	<img id="text-you-are" src="text-you-are.png" />
+	<img id="text-you-are-2" src="text-you-are-2.png" />
+	<img id="text-not" src="text-not.png" />
+	<img id="text-not-2" src="text-not-2.png" />
+	<img id="text-this-fly" src="text-this-fly.png" />
+	<img id="text-this-fly-2" src="text-this-fly-2.png" />
+	<img id="text-arrow" src="text-arrow.png" />
+	<img id="text-arrow-2" src="text-arrow-2.png" />
+	<img id="powerup-mitosis" src="powerup-mitosis.png" />
+	<img id="powerup-mitosis-dark" src="powerup-mitosis-dark.png" />
+	<img id="powerup-gravity" src="powerup-gravity.png" />
+	<img id="powerup-gravity-dark" src="powerup-gravity-dark.png" />
+	<img id="powerup-dark" src="powerup-dark.png" />
+	<img id="powerup-dark-dark" src="powerup-dark-dark.png" />
+	<img id="powerup-dark-indicator" src="powerup-dark-indicator.png" />
+	<audio id="sfx-squish" src="squish.flac"></audio>
+	<audio id="sfx-boing" src="boing.flac"></audio>
+</div>
+<script>//<![CDATA[
+let { abs, sqrt, min, max } = Math;
+let clamp = (x, lower, upper) => min(max(lower, x), upper);
+
+let rand = (max = 1, min = 0) => min + Math.random() * (max - min);
+let randInt = (max, min = 0) => ~~rand(max, min);
+let pickRandom = (arr) => arr[randInt(arr.length)];
+let coin = (p = .5) => Math.random() < p;
+
+function intersects({ x: x1, y: y1, w: w1, h: h1 }, { x: x2, y: y2, w: w2, h: h2 }) {
+	return x2 < x1 + w1 && x1 < x2 + w2 && y2 < y1 + h1 && y1 < y2 + h2;
+}
+
+
+let $ = (selector) => document.querySelector(selector);
+let $$ = (selector) => document.querySelectorAll(selector);
+let canvas = $("canvas");
+let ctx = canvas.getContext("2d");
+let actx = new AudioContext();
+
+let keysDown = new Set();
+addEventListener("keydown", (e) => {
+	keysDown.add(e.code);
+});
+addEventListener("keyup", (e) => {
+	keysDown.delete(e.code);
+});
+
+let touchLeft = false;
+let touchRight = false;
+function updateTouches(e) {
+	touchLeft = false;
+	touchRight = false;
+	for (let i = 0; i < e.touches.length; i++) {
+		let touch = e.touches.item(i);
+		if (touch.clientX < document.body.clientWidth / 2) {
+			touchLeft = true;
+		} else {
+			touchRight = true;
+		}
+	}
+}
+document.body.addEventListener("touchstart", updateTouches);
+document.body.addEventListener("touchend", updateTouches);
+document.body.addEventListener("touchcancel", updateTouches);
+document.body.addEventListener("touchmove", updateTouches);
+
+let sfx = {};
+async function loadSound(src) {
+	return await actx.decodeAudioData(await (await fetch(src)).arrayBuffer());
+}
+for (let audio of $$("audio")) {
+	loadSound(audio.src).then(b => sfx[audio.id] = b);
+}
+function sound(id) {
+	actx.resume();
+	let source = new AudioBufferSourceNode(actx, { buffer: sfx[id] });
+	source.connect(actx.destination);
+	source.start();
+}
+
+
+let colors = {
+	base03: "#002b36",
+	base02: "#073642",
+	base01: "#586e75",
+	base00: "#657b83",
+	base0: "#839496",
+	base1: "#93a1a1",
+	base2: "#eee8d5",
+	base3: "#fdf6e3",
+	yellow: "#b58900",
+	orange: "#cb4b16",
+	red: "#dc322f",
+	magenta: "#d33682",
+	violet: "#6c71c4",
+	blue: "#268bd2",
+	cyan: "#2aa198",
+	green: "#859900",
+};
+
+let boundX = 400;
+let boundY = 480;
+let paddleSpeed = 3;
+let g = 1 / 64;
+let paddle = { x: boundX / 2 - 50 / 2, y: 400, w: 50, h: 10 };
+let flyX = paddle.w / 2 - 4 / 2;
+let flyVx = 0;
+let flyDirection = "right";
+let blocks = [
+	Array(10).fill("red"),
+	Array(10).fill("orange"),
+	Array(10).fill("yellow"),
+	Array(10).fill("red"),
+	Array(10).fill("orange"),
+	Array(10).fill("yellow"),
+	Array(10).fill("red"),
+	Array(10).fill("orange"),
+	Array(10).fill("yellow"),
+	Array(10).fill("red"),
+];
+let balls = [];
+let powerups = [];
+let activePowerups = new Set();
+let goalObject;
+let goalXOffset;
+
+
+let blockSizeX = 40;
+let blockSizeY = 12;
+function blockRect(x, y) {
+	return {
+		x: x * blockSizeX,
+		y: y * blockSizeY + 50,
+		w: blockSizeX,
+		h: blockSizeY,
+	};
+}
+
+
+function drawRect({ x, y, w, h }, fill, stroke, { l = 0, r = 0, t = 0, b = 0 } = {}) {
+	x -= l;
+	w += l + r;
+	y -= t;
+	h += t + b;
+	if (stroke) {
+		// Attempts to use strokeRect all ended in browser-dependent antialiasing
+		ctx.fillStyle = colors[stroke];
+		ctx.fillRect(x, y, w, h);
+		x += 1;
+		y += 1;
+		w -= 2;
+		h -= 2;
+	}
+	ctx.fillStyle = colors[fill];
+	ctx.fillRect(x, y, w, h);
+}
+
+function wobble() {
+	return { l: randInt(2), r: randInt(2), t: randInt(2), b: randInt(2) };
+}
+
+function drawImageInColor(image, x, y, color, flipX) {
+	ctx.shadowColor = colors[color];
+	ctx.shadowOffsetX = -1024;
+	if (flipX) {
+		ctx.save();
+		ctx.scale(-1, 1);
+		ctx.drawImage(image, -x - 1024 - image.width, y);
+		ctx.restore();
+	} else {
+		ctx.drawImage(image, x + 1024, y);
+	}
+	ctx.shadowColor = "transparent";
+}
+
+
+function tick(t) {
+	drawRect({ x: 0, y: 0, w: boundX, h: boundY }, "base3");
+
+	let msgX = 160;
+	let msgY = 300;
+	let wiggleSuffix = t % 200 < 100 ? "" : "-2";
+	if (t < 2000) {
+		drawImageInColor($("#text-someone-is" + wiggleSuffix), msgX, msgY, "base00");
+		drawImageInColor($("#text-playing-breakout" + wiggleSuffix), msgX, msgY, "base00");
+		drawImageInColor($("#text-exclamation" + wiggleSuffix), msgX, msgY, "base00");
+	} else if (t < 4000) {
+		drawImageInColor($("#text-you-are" + wiggleSuffix), msgX, msgY, "base00");
+		drawImageInColor($("#text-not" + wiggleSuffix), msgX, msgY, "base00");
+		drawImageInColor($("#text-playing-breakout" + wiggleSuffix), msgX, msgY, "base00");
+	} else if (t < 6000) {
+		drawImageInColor($("#text-you-are" + wiggleSuffix), msgX, msgY, "base00");
+		drawImageInColor($("#text-this-fly" + wiggleSuffix), msgX, msgY, "base00");
+		let flyDisplacement = flyX - (paddle.w / 2 - 4 / 2);
+		drawImageInColor($("#text-arrow" + wiggleSuffix), msgX + flyDisplacement, msgY, "base00");
+		drawRect({x: msgX + 56 + flyDisplacement, y: msgY + 69, w: 6 - flyDisplacement, h: 2}, "base00");
+	}
+
+	for (let y = 0; y < 10; y++) {
+		for (let x = 0; x < 10; x++) {
+			if (!blocks[y][x]) continue;
+			drawRect(blockRect(x, y), blocks[y][x], activePowerups.has("dark") ? "base3" : "base01", { r: x !== 9 ? 1 : 0, b: 1 });
+		}
+	}
+
+	let powerupRowX = 0;
+	for (let powerup of activePowerups) {
+		if (powerup === "gravity") {
+			ctx.drawImage($(`#powerup-gravity${activePowerups.has("dark") ? "-dark" : ""}`), powerupRowX, 0);
+		} else if (powerup === "dark") {
+			ctx.drawImage($("#powerup-dark-indicator"), powerupRowX, 0);
+		}
+		powerupRowX += 25;
+	}
+
+	let leftBumper = { x: paddle.x, y: paddle.y, w: paddle.h, h: paddle.h };
+	let rightBumper = { x: paddle.x + paddle.w - paddle.h, y: paddle.y, w: paddle.h, h: paddle.h };
+	drawRect(paddle, "base1", "base00");
+	drawRect(leftBumper, "base00", "base01");
+	drawRect(rightBumper, "base00", "base01");
+
+	if (keysDown.has("KeyA") || keysDown.has("ArrowLeft") || touchLeft) {
+		flyVx -= 1;
+		flyDirection = "left";
+	}
+	if (keysDown.has("KeyE") || keysDown.has("ArrowRight") || touchRight) {
+		flyVx += 1;
+		flyDirection = "right";
+	}
+	flyX += flyVx;
+	flyVx *= .75;
+	let unclampedFlyX = flyX;
+	flyX = clamp(flyX, 0, paddle.w - 4);
+	if (flyX !== unclampedFlyX) flyVx = 0;
+	drawImageInColor($("#fly"), paddle.x + flyX, paddle.y - 4, "base00", flyDirection === "left");
+
+	let oldGoalObject = goalObject;
+	if (goalObject && goalObject.y > paddle.y) {
+		goalObject = null;
+		console.log("old goal went off screen");
+	}
+	if (!goalObject || !(goalObject instanceof Ball) || goalObject.intersectX === null) {
+		for (let ball of balls) {
+			if (ball.intersectX !== null && (!goalObject || goalObject.y < ball.y)) {
+				goalObject = ball;
+				console.log("falling ball", ball);
+			}
+		}
+	}
+	if ((!goalObject || (goalObject instanceof Ball && goalObject.intersectX === null)) && powerups.length) {
+		goalObject = powerups[0];
+		console.log("powerup");
+	}
+	if (!goalObject) {
+		for (let ball of balls) {
+			if (!goalObject || goalObject.y < ball.y) {
+				goalObject = ball;
+				console.log("alt ball");
+			}
+		}
+	}
+	if (goalObject !== oldGoalObject) {
+		goalXOffset = -rand(paddle.w);
+	}
+
+	if (goalObject) {
+		let goalX = (goalObject.intersectX ?? goalObject.x) + goalXOffset;
+		if (goalX < paddle.x - paddleSpeed) {
+			paddle.x -= paddleSpeed;
+			drawRect(leftBumper, "magenta", "violet", wobble());
+		}
+		else if (goalX > paddle.x + paddleSpeed) {
+			paddle.x += paddleSpeed;
+			drawRect(rightBumper, "blue", "violet", wobble());
+		}
+		paddle.x = clamp(paddle.x, 0, boundX - paddle.w);
+	}
+
+	for (let i = balls.length - 1; i >= 0; i--) {
+		let ball = balls[i];
+		ball.tick();
+		if (ball.y > boundY) {
+			if (goalObject === ball) goalObject = null;
+			balls.splice(i, 1);
+		}
+	}
+	if (!balls.length && t > 6000) balls.push(new Ball());
+
+	for (let i = powerups.length - 1; i >= 0; i--) {
+		let powerup = powerups[i];
+		powerup.y += 1;
+		ctx.drawImage($(`#powerup-${powerup.type}${activePowerups.has("dark") ? "-dark" : ""}`), powerup.x, powerup.y);
+		let removing = false;
+		if (intersects(powerup, paddle)) {
+			powerupTypes[powerup.type]();
+			removing = true;
+		} else if (powerup.y > boundY) {
+			removing = true;
+		}
+		if (removing) {
+			if (goalObject === powerup) goalObject = null;
+			powerups.splice(i, 1);
+		}
+	}
+}
+
+
+class Ball {
+	constructor() {
+		let side = coin();
+		let angle = coin();
+		this.x = side ? -10 : boundX + 10;
+		this.y = randInt(200, 300);
+		this.w = 10;
+		this.h = 10;
+		this.vx = (side ? -1 : 1) * (angle ? 2 : 4);
+		this.vy = angle ? -4 : -2;
+		this.intersectX = null;
+	}
+
+	tick() {
+		this.x += this.vx;
+		this.y += this.vy;
+		if (activePowerups.has("gravity")) this.vy += g;
+		let bx = false;
+		let by = false;
+		if (this.x < 0 && this.vx < 0) {
+			bx = true;
+			sound("sfx-boing");
+		}
+		if (this.x > boundX - this.w && this.vx > 0) {
+			bx = true;
+			sound("sfx-boing");
+		}
+		if (this.y < 0 && this.vy < 0) {
+			by = true;
+			sound("sfx-boing");
+		}
+		drawRect(this, "base2", "base00");
+		if (intersects(this, { x: paddle.x + flyX, y: paddle.y - 5, w: 5, h: 5 })) {
+			console.log("oh nooo");
+			sound("sfx-squish");
+		}
+
+		if (this.vy > 0 && this.y > 120) {
+			// This isn't precisely right
+			// (I took integrals, but game physics is a series of discrete steps, not a continuous process)
+			// but it's close enough
+			// and the AI making small adjustments as the ball bounces looks cool
+			let px = this.x + this.w / 2;
+			let py = this.y + this.h / 2;
+			let pvx = this.vx;
+			let pvy = this.vy;
+			// ctx.strokeStyle = colors.base2;
+			// ctx.beginPath();
+			// ctx.moveTo(px, py);
+			do {
+				let timeToWallBounce = ((pvx < 0 ? this.w / 2 : boundX - this.w / 2) - px) / pvx;
+				let timeToIntersect = (paddle.y - py) / pvy;
+				if (activePowerups.has("gravity")) {
+					timeToIntersect = (sqrt(2 * g * (paddle.y - py) + pvy ** 2) - pvy) / g;
+				}
+				if (timeToIntersect < timeToWallBounce) {
+					this.intersectX = px + pvx * timeToIntersect;
+				}
+				px += pvx * timeToWallBounce;
+				py += pvy * timeToWallBounce;
+				pvx *= -1;
+				if (activePowerups.has("gravity")) {
+					py += g * timeToWallBounce ** 2 / 2;
+					pvy += g * timeToWallBounce;
+				}
+				// ctx.lineTo(px, py);
+			} while (py < paddle.y);
+			// ctx.stroke();
+		} else {
+			this.intersectX = null;
+		}
+		for (let y = 0; y < 10; y++) {
+			for (let x = 0; x < 10; x++) {
+				if (!blocks[y][x]) continue;
+				let rect = blockRect(x, y);
+				if (intersects(this, rect)) {
+					blocks[y][x] = null;
+					sound("sfx-boing");
+					let xFactor = ((this.x + this.w / 2) - (rect.x + rect.w / 2)) / rect.w;
+					let yFactor = ((this.y + this.h / 2) - (rect.y + rect.h / 2)) / rect.h;
+					if (abs(xFactor) > abs(yFactor)) {
+						bx = true;
+					} else {
+						by = true;
+					}
+					if (coin(.25)) powerups.push({ x: rect.x + 15, y: rect.y, w: 21, h: 21, type: pickRandom(Object.keys(powerupTypes)) });
+				}
+			}
+		}
+		if (bx) this.vx *= -1;
+		if (by) this.vy *= -1;
+		if (intersects(this, paddle) && this.vy > 0) {
+			if (abs((this.x + this.w / 2) - (paddle.x + paddle.w / 2)) > paddle.w / 2 - paddle.h) {
+				this.vx = 4;
+				this.vy = -2;
+			} else {
+				this.vx = 2;
+				this.vy = -4;
+			}
+			if (this.x + this.w / 2 < paddle.x + paddle.w / 2) {
+				this.vx *= -1;
+			}
+			if (goalObject === this) goalObject = null;
+			sound("sfx-boing");
+		}
+	}
+}
+
+
+let powerupTypes = {
+	mitosis() {
+		for (let ball of [...balls]) {
+			let newBall = new Ball();
+			newBall.x = ball.x;
+			newBall.y = ball.y;
+			newBall.vx = -ball.vx;
+			newBall.vy = ball.vy;
+			balls.push(newBall);
+		}
+	},
+	gravity() {
+		if (activePowerups.has("gravity")) {
+			activePowerups.delete("gravity");
+		} else {
+			activePowerups.add("gravity");
+		}
+	},
+	dark() {
+		if (activePowerups.has("dark")) {
+			activePowerups.delete("dark");
+		} else {
+			activePowerups.add("dark");
+		}
+		[colors.base0, colors.base00] = [colors.base00, colors.base0];
+		[colors.base1, colors.base01] = [colors.base01, colors.base1];
+		[colors.base2, colors.base02] = [colors.base02, colors.base2];
+		[colors.base3, colors.base03] = [colors.base03, colors.base3];
+		document.body.style.background = colors.base3;
+		document.body.style.color = activePowerups.has("dark") ? "base00" : "base01";
+	},
+};
+
+
+let prevT = 0;
+requestAnimationFrame(function frame(t) {
+	if (t - prevT >= 16) { // Limit fps on high refresh rate monitors
+		prevT = t;
+		tick(t);
+	}
+	requestAnimationFrame(frame);
+});
+//]]></script>
+</body>
+</html>
