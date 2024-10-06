@@ -433,7 +433,7 @@ class Ball {
 		this.y = randInt(200, 300);
 		this.w = 10;
 		this.h = 10;
-		this.vx = (side ? -1 : 1) * (angle ? 2 : 4);
+		this.vx = (side ? 1 : -1) * (angle ? 2 : 4);
 		this.vy = angle ? -4 : -2;
 		this.intersectX = null;
 	}
