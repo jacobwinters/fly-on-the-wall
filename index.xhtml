@@ -392,8 +392,10 @@ function tick(t) {
 	let emsgX = 130;
 	let emsgY = 250;
 	if (playerLives === 0 && respawnTimer) {
-		drawImageInColor($("#endtext-you" + wiggleSuffix), emsgX, emsgY, "base00");
 		if (endgameMessageTicks > 60) {
+			drawImageInColor($("#endtext-you" + wiggleSuffix), emsgX, emsgY, "base00");
+		}
+		if (endgameMessageTicks > 120) {
 			drawImageInColor($("#endtext-lost" + wiggleSuffix), emsgX, emsgY, "base00");
 		}
 		endgameMessageTicks++;
