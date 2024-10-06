@@ -153,6 +153,9 @@ let powerups = [];
 let activePowerups = new Set();
 let goalObject;
 let goalXOffset;
+let playerLives = 3;
+let respawnTimer = 0;
+let aiLives = 4;
 
 
 let blockSizeX = 40;
@@ -233,14 +236,26 @@ function tick(t) {
 		}
 	}
 
-	let powerupRowX = 0;
+	let powerupRowX = 1;
 	for (let powerup of activePowerups) {
 		if (powerup === "gravity") {
-			ctx.drawImage($(`#powerup-gravity${activePowerups.has("dark") ? "-dark" : ""}`), powerupRowX, 0);
+			ctx.drawImage($(`#powerup-gravity${activePowerups.has("dark") ? "-dark" : ""}`), powerupRowX, 1);
 		} else if (powerup === "dark") {
-			ctx.drawImage($("#powerup-dark-indicator"), powerupRowX, 0);
+			ctx.drawImage($("#powerup-dark-indicator"), powerupRowX, 1);
 		}
 		powerupRowX += 25;
+	}
+
+	let flyRowX = 1;
+	for (let i = 0; i < playerLives; i++) {
+		drawImageInColor($("#fly"), flyRowX, boundY - 5, "base00");
+		flyRowX += 9;
+	}
+
+	let ballRowX = boundX - 11;
+	for (let i = 0; i < aiLives; i++) {
+		drawRect({ x: ballRowX, y: boundY - 11, w: 10, h: 10 }, "base2", "base00");
+		ballRowX -= 15;
 	}
 
 	let leftBumper = { x: paddle.x, y: paddle.y, w: paddle.h, h: paddle.h };
@@ -249,20 +264,31 @@ function tick(t) {
 	drawRect(leftBumper, "base00", "base01");
 	drawRect(rightBumper, "base00", "base01");
 
-	if (keysDown.has("KeyA") || keysDown.has("ArrowLeft") || touchLeft) {
-		flyVx -= 1;
-		flyDirection = "left";
+	if (respawnTimer) {
+		if (playerLives !== 0) {
+			respawnTimer--;
+			if (respawnTimer === 0) {
+				playerLives--;
+				flyX = paddle.w / 2 - 4 / 2;
+				flyVx = 0;
+			}
+		}
+	} else {
+		if (keysDown.has("KeyA") || keysDown.has("ArrowLeft") || touchLeft) {
+			flyVx -= 1;
+			flyDirection = "left";
+		}
+		if (keysDown.has("KeyE") || keysDown.has("ArrowRight") || touchRight) {
+			flyVx += 1;
+			flyDirection = "right";
+		}
+		flyX += flyVx;
+		flyVx *= .75;
+		let unclampedFlyX = flyX;
+		flyX = clamp(flyX, 0, paddle.w - 4);
+		if (flyX !== unclampedFlyX) flyVx = 0;
+		drawImageInColor($("#fly"), paddle.x + flyX, paddle.y - 4, "base00", flyDirection === "left");
 	}
-	if (keysDown.has("KeyE") || keysDown.has("ArrowRight") || touchRight) {
-		flyVx += 1;
-		flyDirection = "right";
-	}
-	flyX += flyVx;
-	flyVx *= .75;
-	let unclampedFlyX = flyX;
-	flyX = clamp(flyX, 0, paddle.w - 4);
-	if (flyX !== unclampedFlyX) flyVx = 0;
-	drawImageInColor($("#fly"), paddle.x + flyX, paddle.y - 4, "base00", flyDirection === "left");
 
 	let oldGoalObject = goalObject;
 	if (goalObject && goalObject.y > paddle.y) {
@@ -314,7 +340,10 @@ function tick(t) {
 			balls.splice(i, 1);
 		}
 	}
-	if (!balls.length && t > 6000) balls.push(new Ball());
+	if (!balls.length && t > 6000 && aiLives !== 0) {
+		balls.push(new Ball());
+		aiLives--;
+	}
 
 	for (let i = powerups.length - 1; i >= 0; i--) {
 		let powerup = powerups[i];
@@ -367,8 +396,8 @@ class Ball {
 			sound("sfx-boing");
 		}
 		drawRect(this, "base2", "base00");
-		if (intersects(this, { x: paddle.x + flyX, y: paddle.y - 5, w: 5, h: 5 })) {
-			console.log("oh nooo");
+		if (!respawnTimer && intersects(this, { x: paddle.x + flyX, y: paddle.y - 5, w: 5, h: 5 })) {
+			respawnTimer = 60;
 			sound("sfx-squish");
 		}
 
