@@ -46,6 +46,8 @@ canvas {
 	<img id="powerup-dark-indicator" src="powerup-dark-indicator.png" />
 	<audio id="sfx-squish" src="squish.flac"></audio>
 	<audio id="sfx-boing" src="boing.flac"></audio>
+	<audio id="sfx-ball-fall" src="ball-fall.flac"></audio>
+	<audio id="sfx-powerup" src="powerup.flac"></audio>
 </div>
 <script>//<![CDATA[
 let { abs, sqrt, min, max } = Math;
@@ -338,6 +340,7 @@ function tick(t) {
 		if (ball.y > boundY) {
 			if (goalObject === ball) goalObject = null;
 			balls.splice(i, 1);
+			sound("sfx-ball-fall");
 		}
 	}
 	if (!balls.length && t > 6000 && aiLives !== 0) {
@@ -359,6 +362,7 @@ function tick(t) {
 		if (removing) {
 			if (goalObject === powerup) goalObject = null;
 			powerups.splice(i, 1);
+			sound("sfx-powerup");
 		}
 	}
 }
