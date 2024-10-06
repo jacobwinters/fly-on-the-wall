@@ -44,6 +44,18 @@ canvas {
 	<img id="powerup-dark" src="powerup-dark.png" />
 	<img id="powerup-dark-dark" src="powerup-dark-dark.png" />
 	<img id="powerup-dark-indicator" src="powerup-dark-indicator.png" />
+	<img id="endtext-you" src="endtext-you.png" />
+	<img id="endtext-you-2" src="endtext-you-2.png" />
+	<img id="endtext-lost" src="endtext-lost.png" />
+	<img id="endtext-lost-2" src="endtext-lost-2.png" />
+	<img id="endtext-win" src="endtext-win.png" />
+	<img id="endtext-win-2" src="endtext-win-2.png" />
+	<img id="endtext-x-1" src="endtext-x-1.png" />
+	<img id="endtext-x-1-2" src="endtext-x-1-2.png" />
+	<img id="endtext-x-2" src="endtext-x-2.png" />
+	<img id="endtext-x-2-2" src="endtext-x-2-2.png" />
+	<img id="endtext-survived" src="endtext-survived.png" />
+	<img id="endtext-survived-2" src="endtext-survived-2.png" />
 	<audio id="sfx-squish" src="squish.flac"></audio>
 	<audio id="sfx-boing" src="boing.flac"></audio>
 	<audio id="sfx-ball-fall" src="ball-fall.flac"></audio>
@@ -166,6 +178,8 @@ let goalXOffset;
 let playerLives = 3;
 let respawnTimer = 0;
 let aiLives = 4;
+let blocksLeft = true;
+let endgameMessageTicks = 0;
 
 
 let blockSizeX = 40;
@@ -239,10 +253,12 @@ function tick(t) {
 		drawRect({x: msgX + 56 + flyDisplacement, y: msgY + 69, w: 6 - flyDisplacement, h: 2}, "base00");
 	}
 
+	blocksLeft = false;
 	for (let y = 0; y < 10; y++) {
 		for (let x = 0; x < 10; x++) {
 			if (!blocks[y][x]) continue;
 			drawRect(blockRect(x, y), blocks[y][x], activePowerups.has("dark") ? "base3" : "base01", { r: x !== 9 ? 1 : 0, b: 1 });
+			blocksLeft = true;
 		}
 	}
 
@@ -350,7 +366,7 @@ function tick(t) {
 			sound("sfx-ball-fall");
 		}
 	}
-	if (!balls.length && t > 6500 && aiLives !== 0) {
+	if (!balls.length && t > 6500 && aiLives !== 0 && blocksLeft) {
 		balls.push(new Ball());
 		aiLives--;
 	}
@@ -371,6 +387,40 @@ function tick(t) {
 			powerups.splice(i, 1);
 			sound("sfx-powerup");
 		}
+	}
+
+	let emsgX = 130;
+	let emsgY = 250;
+	if (playerLives === 0 && respawnTimer) {
+		drawImageInColor($("#endtext-you" + wiggleSuffix), emsgX, emsgY, "base00");
+		if (endgameMessageTicks > 60) {
+			drawImageInColor($("#endtext-lost" + wiggleSuffix), emsgX, emsgY, "base00");
+		}
+		endgameMessageTicks++;
+	} else if (!balls.length && (aiLives === 0 || !blocksLeft)) {
+		drawImageInColor($("#endtext-you" + wiggleSuffix), emsgX, emsgY, "base00");
+		if (endgameMessageTicks < 180) {
+			if (endgameMessageTicks > 60) {
+				drawImageInColor($("#endtext-win" + wiggleSuffix), emsgX, emsgY, "base00");
+			}
+			if (endgameMessageTicks > 120) {
+				drawImageInColor($("#endtext-x-1" + wiggleSuffix), emsgX, emsgY, "base00");
+			}
+			if (endgameMessageTicks > 150) {
+				drawImageInColor($("#endtext-x-2" + wiggleSuffix), emsgX, emsgY, "base00");
+			}
+		} else {
+			ctx.save();
+			let letters = ~~((endgameMessageTicks - 180) / 40);
+			if (letters < 8) {
+				ctx.beginPath();
+				ctx.rect(emsgX, emsgY, [0, 15, 39, 57, 78, 85, 104, 118][letters], 76);
+				ctx.clip();
+			}
+			drawImageInColor($("#endtext-survived" + wiggleSuffix), emsgX, emsgY, "base00");
+			ctx.restore();
+		}
+		endgameMessageTicks++;
 	}
 }
 
@@ -394,11 +444,11 @@ class Ball {
 		if (activePowerups.has("gravity")) this.vy += g;
 		let bx = false;
 		let by = false;
-		if (this.x < 0 && this.vx < 0) {
+		if (blocksLeft && this.x < 0 && this.vx < 0) {
 			bx = true;
 			sound("sfx-boing");
 		}
-		if (this.x > boundX - this.w && this.vx > 0) {
+		if (blocksLeft && this.x > boundX - this.w && this.vx > 0) {
 			bx = true;
 			sound("sfx-boing");
 		}
