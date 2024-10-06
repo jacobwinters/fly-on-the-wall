@@ -110,6 +110,14 @@ function sound(id) {
 	source.start();
 }
 
+let humOscillator = new OscillatorNode(actx, { frequency: 100, type: "triangle" });
+let humGain = new GainNode(actx, { gain: 0 });
+humOscillator.connect(humGain);
+humGain.connect(actx.destination);
+humOscillator.start();
+function setHum(b) {
+	humGain.gain.setTargetAtTime(b ? 1 / 16 : 0, actx.currentTime, 1 / 4);
+}
 
 let colors = {
 	base03: "#002b36",
@@ -321,18 +329,21 @@ function tick(t) {
 		goalXOffset = -rand(paddle.w);
 	}
 
+	let paddleMoving = false;
 	if (goalObject) {
 		let goalX = (goalObject.intersectX ?? goalObject.x) + goalXOffset;
 		if (goalX < paddle.x - paddleSpeed) {
 			paddle.x -= paddleSpeed;
+			paddleMoving = true;
 			drawRect(leftBumper, "magenta", "violet", wobble());
-		}
-		else if (goalX > paddle.x + paddleSpeed) {
+		} else if (goalX > paddle.x + paddleSpeed) {
 			paddle.x += paddleSpeed;
+			paddleMoving = true;
 			drawRect(rightBumper, "blue", "violet", wobble());
 		}
 		paddle.x = clamp(paddle.x, 0, boundX - paddle.w);
 	}
+	setHum(paddleMoving);
 
 	for (let i = balls.length - 1; i >= 0; i--) {
 		let ball = balls[i];
