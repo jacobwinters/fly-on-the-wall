@@ -169,9 +169,6 @@ let blocks = [
 	Array(10).fill("orange"),
 	Array(10).fill("yellow"),
 	Array(10).fill("red"),
-	Array(10).fill("orange"),
-	Array(10).fill("yellow"),
-	Array(10).fill("red"),
 ];
 let balls = [];
 let powerups = [];
@@ -190,7 +187,7 @@ let blockSizeY = 12;
 function blockRect(x, y) {
 	return {
 		x: x * blockSizeX,
-		y: y * blockSizeY + 50,
+		y: y * blockSizeY + 72,
 		w: blockSizeX,
 		h: blockSizeY,
 	};
@@ -260,8 +257,8 @@ function tick(t) {
 	}
 
 	blocksLeft = false;
-	for (let y = 0; y < 10; y++) {
-		for (let x = 0; x < 10; x++) {
+	for (let y = 0; y < blocks.length; y++) {
+		for (let x = 0; x < blocks[y].length; x++) {
 			if (!blocks[y][x]) continue;
 			drawRect(blockRect(x, y), blocks[y][x], activePowerups.has("dark") ? "base3" : "base01", { r: x !== 9 ? 1 : 0, b: 1 });
 			blocksLeft = true;
@@ -507,8 +504,8 @@ class Ball {
 		} else {
 			this.intersectX = null;
 		}
-		for (let y = 0; y < 10; y++) {
-			for (let x = 0; x < 10; x++) {
+		for (let y = 0; y < blocks.length; y++) {
+			for (let x = 0; x < blocks[y].length; x++) {
 				if (!blocks[y][x]) continue;
 				let rect = blockRect(x, y);
 				if (intersects(this, rect)) {
