@@ -465,10 +465,6 @@ class Ball {
 			sound("sfx-boing");
 		}
 		drawRect(this, "base2", "base00");
-		if (!respawnTimer && intersects(this, { x: paddle.x + flyX, y: paddle.y - 5, w: 5, h: 5 })) {
-			respawnTimer = 60;
-			sound("sfx-squish");
-		}
 
 		if (this.vy > 0 && this.y > 120) {
 			// This isn't precisely right
@@ -536,7 +532,12 @@ class Ball {
 				this.vx *= -1;
 			}
 			if (goalObject === this) goalObject = null;
-			sound("sfx-boing");
+			if (!respawnTimer && intersects(this, { x: paddle.x + flyX, y: paddle.y - 5, w: 5, h: 5 })) {
+				respawnTimer = 60;
+				sound("sfx-squish");
+			} else {
+				sound("sfx-boing");
+			}
 		}
 	}
 }
