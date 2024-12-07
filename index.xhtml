@@ -507,9 +507,9 @@ class Ball {
 				if (intersects(this, rect)) {
 					blocks[y][x] = null;
 					sound("sfx-boing");
-					let xFactor = ((this.x + this.w / 2) - (rect.x + rect.w / 2)) / rect.w;
-					let yFactor = ((this.y + this.h / 2) - (rect.y + rect.h / 2)) / rect.h;
-					if (abs(xFactor) > abs(yFactor)) {
+					let timeToXEdge = ((this.vx > 0 ? rect.x - this.w : rect.x + rect.w) - this.x) / this.vx;
+					let timeToYEdge = ((this.vy > 0 ? rect.y - this.h : rect.y + rect.h) - this.y) / this.vy;
+					if (timeToXEdge > timeToYEdge) {
 						bx = true;
 					} else {
 						by = true;
